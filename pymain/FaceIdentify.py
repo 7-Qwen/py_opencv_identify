@@ -18,7 +18,7 @@ recognizer = cv2.face.LBPHFaceRecognizer_create()
 # 人脸训练集路径
 path = '../static/upload/faceModel'
 # 获取分类器
-faceCascade = cv2.CascadeClassifier(r'../static/data/haarcascade_frontalface_default.xml')
+faceCascade = cv2.CascadeClassifier('../static/data/haarcascade_frontalface_alt2.xml')
 # 训练集合文件
 trainerPath = '../trainer/trainer'
 
@@ -40,7 +40,7 @@ def allowed_file(filename):
 
 # 人脸识别函数
 @app.route('/face/identify', methods=['GET', 'POST'])
-def Face():
+def face():
     # 校验方法类型
     if request.method == 'POST':
         # 校验文件是否合法
@@ -55,7 +55,7 @@ def Face():
                 filename = secure_filename(file.filename)
                 file.save(os.path.join(app.config['IDENTIFY_UPLOAD_FOLDER'], filename))
                 # 图片地址
-                fiPath = '../static/upload/identifyModel/' + filename
+                fiPath = os.path.join(app.config['IDENTIFY_UPLOAD_FOLDER'], filename)
                 # 加载训练好的模型文件
                 trainRealPath = trainerPath + str(int(request.form.get("modelId"))) + ".yml"
                 if not os.path.exists(trainRealPath):
@@ -73,12 +73,17 @@ def Face():
                 # maxSize:当前检测区域的最面积
                 # faces = face_detector.detectMultiScale(gray)
                 # scaleFactor=1.01, minNeighbors=3, maxSize = (33, 33), minSize = (28, 28)
+                print(gray)
                 faces = faceCascade.detectMultiScale(
                     gray,
                     scaleFactor=1.3,
                     minNeighbors=5,
                     flags=cv2.CASCADE_SCALE_IMAGE
                 )
+                print(faces)
+                if len(faces) == 0:
+                    os.remove(fiPath)
+                    return jsonify(result=data_false, message="照片不符合规范,请重新拍照")
                 for (x, y, w, h) in faces:
                     # 画一个矩形
                     cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -94,8 +99,10 @@ def Face():
                     else:
                         os.remove(fiPath)
                         return jsonify(result=data_false, message="验证不通过")
+            else:
+                return jsonify(result=data_false, message="没有指定modelId,请先建立模型")
         else:
-            return jsonify(result=data_false, message="没有指定modelId,请先建立模型")
+            return jsonify(result=data_false, message="不允许上传的文件后缀")
     else:
         return jsonify(result=data_false, message="请求方式不为POST")
 
